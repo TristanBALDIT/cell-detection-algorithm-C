@@ -94,31 +94,36 @@ int erosion_test_mask(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], 
 }
 
 // Return 1 if a cell is contained in the square window of width ws around the white (i,j) pixel
-static inline int cell_test(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int i, int j, int ws) {
-    int valid = 1;
+static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws) {
     int a = ws/2 + 1;
     int b = ws/2;
-    int c = ws/2 -1;
 
-    //window corners check
-    if (image[MAX(i-b, 0)][MAX(j-b,0)][0] == 255 ||
-        image[MIN(i+a, 949)][MAX(j-b,0)][0] == 255 ||
-        image[MAX(i-b,0)][MIN(j+a, 949)][0] == 255 ||
-        image[MIN(i+a, 949)][MIN(j+a, 949)][0] == 255) {
-        valid = 0;
+    //Define corners of the test windows  within the image
+    int top    = (i - b < 0) ? 0 : i - b;
+    int bottom = (i + a >= BMP_HEIGTH) ? BMP_HEIGTH - 1 : i + a;
+    int left   = (j - b < 0) ? 0 : j - b;
+    int right  = (j + a >= BMP_WIDTH) ? BMP_WIDTH - 1 : j + a;
+
+    // Check corners
+    if (image[top][left][0]    == 255 ||
+        image[top][right][0]   == 255 ||
+        image[bottom][left][0] == 255 ||
+        image[bottom][right][0] == 255)
+        return 0;
+
+    // Check top and bottom edges (excluding corners already checked)
+    for (int x = left + 1; x < right; x++) {
+        if (image[top][x][0] == 255 || image[bottom][x][0] == 255)
+            return 0;
     }
-    // rest of the window perimeter check
-    else {
-        for (int x = 0; x < ws; x++) {
-            if (image[MAX(i-b, 0)][MIN(MAX(j-c+x, 0), 949)][0] == 255 ||
-                image[MIN(i+a, 949)][MIN(MAX(j-c+x, 0), 949)][0] == 255 ||
-                image[MIN(MAX(i-c+x, 0), 949)][MAX(j-b, 0)][0] == 255 ||
-                image[MIN(MAX(i-c+x, 0), 949)][MIN(j+a, 949)][0] == 255) {
-                valid = 0;
-                }
-        }
+
+    // Check left and right edges (excluding corners already checked)
+    for (int y = top + 1; y < bottom; y++) {
+        if (image[y][left][0] == 255 || image[y][right][0] == 255)
+            return 0;
     }
-    return valid;
+
+    return 1;
 }
 
 // Transform RGB image into it's gary level version
