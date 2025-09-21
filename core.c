@@ -126,6 +126,119 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
     return 1;
 }
 
+
+static inline int cell_test2(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws, int split, int n) {
+    int a = ws/2 + 1;
+    int b = ws/2;
+
+    /* window bounds */
+    int top    = (i - b < 0) ? 0 : i - b;
+    int bottom = (i + a >= BMP_HEIGTH) ? BMP_HEIGTH - 1 : i + a;
+    int left   = (j - b < 0) ? 0 : j - b;
+    int right  = (j + a >= BMP_WIDTH) ? BMP_WIDTH - 1 : j + a;
+
+    /* Strict mode: reject if ANY border pixel (including corners) is white */
+    if (!split) {
+        /* corners */
+        if (image[top][left][0] == 255 ||
+            image[top][right][0] == 255 ||
+            image[bottom][left][0] == 255 ||
+            image[bottom][right][0] == 255)
+            return 0;
+
+        /* top/bottom edges (excluding corners) */
+        for (int x = left + 1; x < right; x++) {
+            if (image[top][x][0] == 255 || image[bottom][x][0] == 255)
+                return 0;
+        }
+
+
+        /* left/right edges (excluding corners) */
+        for (int y = top + 1; y < bottom; y++) {
+            if (image[y][left][0] == 255 || image[y][right][0] == 255)
+                return 0;
+        }
+        return 1;
+    }
+
+    /* Split mode: count whites on each side EXCLUDING corners first */
+    int white_top = 0, white_bottom = 0;
+    int white_left = 0, white_right = 0;
+
+     /* non-corner horizontal pixels */
+    for (int x = left + 1; x < right; x++) {
+        if (image[top][x][0] == 255)    white_top++;
+        if (image[bottom][x][0] == 255) white_bottom++;
+    }
+
+
+    /* non-corner vertical pixels */
+    for (int y = top + 1; y < bottom; y++) {
+        if (image[y][left][0] == 255)  white_left++;
+        if (image[y][right][0] == 255) white_right++;
+    }
+
+    /* corner flags */
+    int c_tl = (image[top][left][0] == 255);
+    int c_tr = (image[top][right][0] == 255);
+    int c_bl = (image[bottom][left][0] == 255);
+    int c_br = (image[bottom][right][0] == 255);
+
+    /* Assign corners to adjacent sides:
+       - If exactly one adjacent side already has whites -> assign to that side.
+       - If both adjacent sides already have whites -> count for both.
+       - If neither has whites -> assign to vertical side by default (left/right).
+    */
+
+    if (c_tl) {
+        if (white_left > 0 && white_top == 0)           white_left++;
+        else if (white_top > 0 && white_left == 0)      white_top++;
+        else if (white_left > 0 && white_top > 0) {     white_left++; white_top++; }
+        else                                            white_left++; /* prefer vertical */
+    }
+    if (c_tr) {
+        if (white_right > 0 && white_top == 0)          white_right++;
+        else if (white_top > 0 && white_right == 0)     white_top++;
+        else if (white_right > 0 && white_top > 0) {    white_right++; white_top++; }
+        else                                            white_right++; /* prefer vertical */
+    }
+    if (c_bl) {
+        if (white_left > 0 && white_bottom == 0)        white_left++;
+        else if (white_bottom > 0 && white_left == 0)   white_bottom++;
+        else if (white_left > 0 && white_bottom > 0) {  white_left++; white_bottom++; }
+        else                                            white_left++; /* prefer vertical */
+    }
+    if (c_br) {
+        if (white_right > 0 && white_bottom == 0)       white_right++;
+        else if (white_bottom > 0 && white_right == 0)  white_bottom++;
+        else if (white_right > 0 && white_bottom > 0) { white_right++; white_bottom++; }
+        else                                            white_right++; /* prefer vertical */
+    }
+
+    /* Count how many sides actually contain whites now */
+    int sides_with_white = 0;
+    if (white_top > 0 ) sides_with_white++;
+    if (white_bottom > 0) sides_with_white++;
+    if (white_left   > 0) sides_with_white++;
+    if (white_right  > 0) sides_with_white++;
+
+    if (sides_with_white == 0) {
+        return 1;
+    }
+
+    /* Valid only if exactly one side has whites and that side's count < n */
+    if (sides_with_white == 1) {
+        if (white_top > 5 && white_top < n)    return 2;
+        if (white_bottom > 5 && white_bottom < n) return 3;
+        if (white_left > 5 && white_left < n)  return 4;
+        if (white_right > 5 && white_right < n) return 5;
+    }
+
+    return 0;
+}
+
+
+
 // Transform RGB image into it's gary level version
 void RGB2gray(unsigned char color_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsigned char gray_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS]) {
     for (int i = 0; i < BMP_WIDTH; i++) {
@@ -166,10 +279,11 @@ int erosion(unsigned char (*src)[BMP_HEIGTH][BMP_CHANNELS], unsigned char (*dst)
 }
 
 // Executing the detection of white cells onto a BW image given a window size (ws)
-int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int ws) {
+int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int ws, int split, int n) {
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
-            if (image[i][j][0] == 255 && cell_test(image, i, j, ws)) {
+            int d = cell_test2(image, i, j, ws, split, n);
+            if (image[i][j][0] == 255 && (d > 0)) {
                 cells_center[nb_cells][0] = i;
                 cells_center[nb_cells][1] = j;
                 nb_cells++;
@@ -258,7 +372,7 @@ int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS
 
         if (!done) {
             // Not fully eroded → run detection and generation
-            nb_cells = detection(img_buffer[(swap_count+1)%2], cells_center, nb_cells, 14);
+            nb_cells = detection(img_buffer[(swap_count+1)%2], cells_center, nb_cells, 14,swap_count>4,(swap_count>6 ? 8 : 11));
             swap_count++;
         }
     } while (!done);
