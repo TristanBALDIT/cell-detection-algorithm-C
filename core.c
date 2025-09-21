@@ -94,40 +94,7 @@ int erosion_test_mask(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], 
 }
 
 // Return 1 if a cell is contained in the square window of width ws around the white (i,j) pixel
-static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws) {
-    int a = ws/2 + 1;
-    int b = ws/2;
-
-    //Define corners of the test windows  within the image
-    int top    = (i - b < 0) ? 0 : i - b;
-    int bottom = (i + a >= BMP_HEIGTH) ? BMP_HEIGTH - 1 : i + a;
-    int left   = (j - b < 0) ? 0 : j - b;
-    int right  = (j + a >= BMP_WIDTH) ? BMP_WIDTH - 1 : j + a;
-
-    // Check corners
-    if (image[top][left][0]    == 255 ||
-        image[top][right][0]   == 255 ||
-        image[bottom][left][0] == 255 ||
-        image[bottom][right][0] == 255)
-        return 0;
-
-    // Check top and bottom edges (excluding corners already checked)
-    for (int x = left + 1; x < right; x++) {
-        if (image[top][x][0] == 255 || image[bottom][x][0] == 255)
-            return 0;
-    }
-
-    // Check left and right edges (excluding corners already checked)
-    for (int y = top + 1; y < bottom; y++) {
-        if (image[y][left][0] == 255 || image[y][right][0] == 255)
-            return 0;
-    }
-
-    return 1;
-}
-
-
-static inline int cell_test2(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws, int split, int n) {
+static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws, int split, int n) {
     int a = ws/2 + 1;
     int b = ws/2;
 
@@ -282,7 +249,7 @@ int erosion(unsigned char (*src)[BMP_HEIGTH][BMP_CHANNELS], unsigned char (*dst)
 int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int ws, int split, int n) {
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
-            int d = cell_test2(image, i, j, ws, split, n);
+            int d = cell_test(image, i, j, ws, split, n);
             if (image[i][j][0] == 255 && (d > 0)) {
                 cells_center[nb_cells][0] = i;
                 cells_center[nb_cells][1] = j;
