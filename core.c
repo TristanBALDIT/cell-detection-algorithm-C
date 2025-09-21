@@ -204,8 +204,6 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
     return 0;
 }
 
-
-
 // Transform RGB image into it's gary level version
 void RGB2gray(unsigned char color_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsigned char gray_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS]) {
     for (int i = 0; i < BMP_WIDTH; i++) {
@@ -249,8 +247,7 @@ int erosion(unsigned char (*src)[BMP_HEIGTH][BMP_CHANNELS], unsigned char (*dst)
 int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int ws, int split, int n) {
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
-            int d = cell_test(image, i, j, ws, split, n);
-            if (image[i][j][0] == 255 && (d > 0)) {
+            if (image[i][j][0] == 255 && (cell_test(image, i, j, ws, split, n) > 0)) {
                 cells_center[nb_cells][0] = i;
                 cells_center[nb_cells][1] = j;
                 nb_cells++;
@@ -315,14 +312,18 @@ int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS
     //Formatting the Input Image
     RGB2gray(input_image, output_image);
     gray2BW(output_image, threshold);
-    write_bitmap(output_image, "dbg.bmp");
 
-    static unsigned char eroded_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS];     // Temp Eroded Image
-    unsigned char (*img_buffer[2])[BMP_HEIGTH][BMP_CHANNELS] = {output_image, eroded_image}; //Img swapping for erosion
+    //DEBUG CODE
+    //write_bitmap(output_image, "dbg.bmp");
+    //END OF DEBUG CODE
+
+    // Temporary eroded image and buffer for image swapping
+    static unsigned char eroded_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS];
+    unsigned char (*img_buffer[2])[BMP_HEIGTH][BMP_CHANNELS] = {output_image, eroded_image};
 
     int done;
-    int style = 6;      //First erosion pattern
-    int swap_count = 0;
+    int style = 6;          //First erosion pattern
+    int swap_count = 0;     // Swap counter to remember where is the image
 
     do {
 
@@ -335,6 +336,7 @@ int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS
         //write_bitmap(img_buffer[(swap_count+1)%2], filename);
         // END OF DEBUG CODE
 
+        // Erosion pattern changed to basic cross
         style = 0;
 
         if (!done) {
