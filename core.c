@@ -94,7 +94,7 @@ int erosion_test_mask(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], 
 }
 
 // Return 1 if a cell is contained in the square window of width ws around the white (i,j) pixel
-static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws, int split, int n) {
+static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws, int split, int n_min, int n_max) {
     int a = ws/2 + 1;
     int b = ws/2;
 
@@ -195,10 +195,10 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
 
     /* Valid only if exactly one side has whites and that side's count < n */
     if (sides_with_white == 1) {
-        if (white_top > 5 && white_top < n)    return 2;
-        if (white_bottom > 5 && white_bottom < n) return 3;
-        if (white_left > 5 && white_left < n)  return 4;
-        if (white_right > 5 && white_right < n) return 5;
+        if (white_top > n_min && white_top < n_max)    return 2;
+        if (white_bottom > n_min && white_bottom < n_max) return 3;
+        if (white_left > n_min && white_left < n_max)  return 4;
+        if (white_right > n_min && white_right < n_max) return 5;
     }
 
     return 0;
@@ -244,10 +244,10 @@ int erosion(unsigned char (*src)[BMP_HEIGTH][BMP_CHANNELS], unsigned char (*dst)
 }
 
 // Executing the detection of white cells onto a BW image given a window size (ws)
-int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int ws, int split, int n) {
+int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int ws, int split, int n_min, int n_max) {
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
-            if (image[i][j][0] == 255 && (cell_test(image, i, j, ws, split, n) > 0)) {
+            if (image[i][j][0] == 255 && (cell_test(image, i, j, ws, split, n_min, n_max) > 0)) {
                 cells_center[nb_cells][0] = i;
                 cells_center[nb_cells][1] = j;
                 nb_cells++;
@@ -341,7 +341,7 @@ int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS
 
         if (!done) {
             // Not fully eroded → run detection and generation
-            nb_cells = detection(img_buffer[(swap_count+1)%2], cells_center, nb_cells, 14,swap_count>4,(swap_count>6 ? 8 : 11));
+            nb_cells = detection(img_buffer[(swap_count+1)%2], cells_center, nb_cells, 14,swap_count>4,5, (swap_count>6 ? 8 : 11));
             swap_count++;
         }
     } while (!done);
