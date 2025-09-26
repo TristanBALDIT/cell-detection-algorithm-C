@@ -80,7 +80,7 @@ const MaskStruct mask_list[] = {
 
 // Set the gray value in all RGB channels of a pixel
 static inline void set_gray_value (unsigned char pixel[3], unsigned char gray_value) {
-    pixel[0] =  pixel[1] = pixel[2] =  gray_value;
+    pixel[0] = gray_value;
 }
 
 
@@ -234,9 +234,12 @@ int erosion(unsigned char (*src)[BMP_HEIGTH][BMP_CHANNELS], unsigned char (*dst)
     memset(dst, 0, BMP_WIDTH * BMP_HEIGTH * BMP_CHANNELS * sizeof(unsigned char));
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
-            if (src[i][j][0] > 0 && erosion_test_mask(src, i, j, mask_list[style])) {
+            if (src[i][j][0] == 255 && erosion_test_mask(src, i, j, mask_list[style])) {
                 set_gray_value(dst[i][j], 255);
                 fully_eroded = 0;
+            }
+            else if (src[i][j][0] == 100) {
+                set_gray_value(dst[i][j], 100);
             }
         }
     }
@@ -255,10 +258,13 @@ int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cell
                 for (int k = 0; k < ws; k++) {
                     for (int l = 0; l < ws; l++) {
                         if (i-a+k > 0 && i-a+k < 949 && j-a+l > 0 && j-a+l < 949) {
-                            set_gray_value(image[i-a+k][j-a+l], 0);
+                            set_gray_value(image[i-a+k][j-a+l], 100);
                         }
                     }
                 }
+            }
+            if (image[i][j][0] == 100) {
+                j = j + ws/2;
             }
         }
     }
@@ -321,23 +327,21 @@ int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS
     static unsigned char eroded_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS];
     unsigned char (*img_buffer[2])[BMP_HEIGTH][BMP_CHANNELS] = {output_image, eroded_image};
 
-    int done;
-    int style = 6;          //First erosion pattern
     int swap_count = 0;     // Swap counter to remember where is the image
 
+    //Initial hard erosion
+    int done = erosion(img_buffer[swap_count%2], img_buffer[(swap_count+1)%2], 6);
+    swap_count ++;
     do {
 
-        // Apply erosion
-        done = erosion(img_buffer[swap_count%2], img_buffer[(swap_count+1)%2], style); // returns 1 if fully eroded, 0 otherwise
+        // Apply standard cross erosion
+        done = erosion(img_buffer[swap_count%2], img_buffer[(swap_count+1)%2], 0);
 
-        //DEBUG CODDE
+        //DEBUG CODE
         //char filename[64];
         //sprintf(filename, "debug%d.bmp", nb_cells);
         //write_bitmap(img_buffer[(swap_count+1)%2], filename);
         // END OF DEBUG CODE
-
-        // Erosion pattern changed to basic cross
-        style = 0;
 
         if (!done) {
             // Not fully eroded → run detection and generation
