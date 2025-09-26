@@ -79,22 +79,22 @@ const MaskStruct mask_list[] = {
 // FUNCTIONS
 
 // Set the gray value in all RGB channels of a pixel
-static inline void set_gray_value (unsigned char pixel[3], unsigned char gray_value) {
-    pixel[0] = gray_value;
+static inline void set_gray_value (unsigned char pixel[3], unsigned char gray_value, int channel) {
+    pixel[channel]  =  gray_value;
 }
 
 
 // Return 1 if all mask pixels around (i, j) are white, else 0
-int erosion_test_mask(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int i, int j, MaskStruct m) {
+int erosion_test_mask(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int i, int j, int channel, MaskStruct m) {
     for (int k = 0; k < m.size; k++) {
         int y = SAFE_IDX(i + m.mask[k][0]);
         int x = SAFE_IDX(j + m.mask[k][1]);
-        if (image[y][x][0] != 255) return 0;
+        if (image[y][x][channel] != 255) return 0;
     } return 1;
 }
 
 // Return 1 if a cell is contained in the square window of width ws around the white (i,j) pixel
-static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int ws, int split, int n_min, int n_max) {
+static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int channel, int ws, int split, int n_min, int n_max) {
     int a = ws/2 + 1;
     int b = ws/2;
 
@@ -107,22 +107,22 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
     /* Strict mode: reject if ANY border pixel (including corners) is white */
     if (!split) {
         /* corners */
-        if (image[top][left][0] == 255 ||
-            image[top][right][0] == 255 ||
-            image[bottom][left][0] == 255 ||
-            image[bottom][right][0] == 255)
+        if (image[top][left][channel] == 255 ||
+            image[top][right][channel] == 255 ||
+            image[bottom][left][channel] == 255 ||
+            image[bottom][right][channel] == 255)
             return 0;
 
         /* top/bottom edges (excluding corners) */
         for (int x = left + 1; x < right; x++) {
-            if (image[top][x][0] == 255 || image[bottom][x][0] == 255)
+            if (image[top][x][channel] == 255 || image[bottom][x][channel] == 255)
                 return 0;
         }
 
 
         /* left/right edges (excluding corners) */
         for (int y = top + 1; y < bottom; y++) {
-            if (image[y][left][0] == 255 || image[y][right][0] == 255)
+            if (image[y][left][channel] == 255 || image[y][right][channel] == 255)
                 return 0;
         }
         return 1;
@@ -134,22 +134,22 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
 
      /* non-corner horizontal pixels */
     for (int x = left + 1; x < right; x++) {
-        if (image[top][x][0] == 255)    white_top++;
-        if (image[bottom][x][0] == 255) white_bottom++;
+        if (image[top][x][channel] == 255)    white_top++;
+        if (image[bottom][x][channel] == 255) white_bottom++;
     }
 
 
     /* non-corner vertical pixels */
     for (int y = top + 1; y < bottom; y++) {
-        if (image[y][left][0] == 255)  white_left++;
-        if (image[y][right][0] == 255) white_right++;
+        if (image[y][left][channel] == 255)  white_left++;
+        if (image[y][right][channel] == 255) white_right++;
     }
 
     /* corner flags */
-    int c_tl = (image[top][left][0] == 255);
-    int c_tr = (image[top][right][0] == 255);
-    int c_bl = (image[bottom][left][0] == 255);
-    int c_br = (image[bottom][right][0] == 255);
+    int c_tl = (image[top][left][channel] == 255);
+    int c_tr = (image[top][right][channel] == 255);
+    int c_bl = (image[bottom][left][channel] == 255);
+    int c_br = (image[bottom][right][channel] == 255);
 
     /* Assign corners to adjacent sides:
        - If exactly one adjacent side already has whites -> assign to that side.
@@ -209,7 +209,7 @@ void RGB2gray(unsigned char color_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], un
     for (int i = 0; i < BMP_WIDTH; i++) {
         for (int j = 0; j < BMP_HEIGTH; j++) {
             unsigned char gray_value = (color_image[i][j][0] + color_image[i][j][1] + color_image[i][j][2])/3;
-            set_gray_value(gray_image[i][j], gray_value);
+            set_gray_value(gray_image[i][j], gray_value, 0);
         }
     }
 }
@@ -219,27 +219,39 @@ void gray2BW(unsigned char gray_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int 
     for (int i = 0; i < BMP_WIDTH; i++) {
         for (int j = 0; j < BMP_HEIGTH; j++) {
             if (gray_image[i][j][0] > threshold) {
-                set_gray_value(gray_image[i][j], 255);
+                set_gray_value(gray_image[i][j], 255, 0);
             }
             else {
-                set_gray_value(gray_image[i][j], 0);
+                set_gray_value(gray_image[i][j], 0, 0);
             }
         }
     }
 }
 
 // Executing the erosion step onto a BW image given an erosion pattern (style)
-int erosion(unsigned char (*src)[BMP_HEIGTH][BMP_CHANNELS], unsigned char (*dst)[BMP_HEIGTH][BMP_CHANNELS], int style) {
+int erosion(unsigned char work_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int style, int target_channel) {
     int fully_eroded = 1;
-    memset(dst, 0, BMP_WIDTH * BMP_HEIGTH * BMP_CHANNELS * sizeof(unsigned char));
+    int input_channel = (target_channel+1)%2;
+
+    // reset the target channel storing the new eroded gray image
+    for (int i = 0; i < BMP_WIDTH; i++) {
+        for (int j = 0; j < BMP_HEIGTH; j++) {
+            set_gray_value(work_image[i][j], 0, target_channel);
+        }
+    }
+
+    // erosion process, read on input channel and write on target channel
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
-            if (src[i][j][0] == 255 && erosion_test_mask(src, i, j, mask_list[style])) {
-                set_gray_value(dst[i][j], 255);
+            unsigned char *pixel = work_image[i][j];
+            if (pixel[input_channel] == 255 && erosion_test_mask(work_image, i, j, input_channel, mask_list[style])) {
+                set_gray_value(pixel, 255, target_channel);
                 fully_eroded = 0;
             }
-            else if (src[i][j][0] == 100) {
-                set_gray_value(dst[i][j], 100);
+
+            // special value to do area skipping during detection
+            else if (pixel[input_channel] == 100) {
+                set_gray_value(pixel, 100, target_channel);
             }
         }
     }
@@ -247,10 +259,11 @@ int erosion(unsigned char (*src)[BMP_HEIGTH][BMP_CHANNELS], unsigned char (*dst)
 }
 
 // Executing the detection of white cells onto a BW image given a window size (ws)
-int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int ws, int split, int n_min, int n_max) {
+int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int channel, int ws, int split, int n_min, int n_max) {
+    printf("%d", channel);
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
-            if (image[i][j][0] == 255 && (cell_test(image, i, j, ws, split, n_min, n_max) > 0)) {
+            if (image[i][j][channel] == 255 && (cell_test(image, i, j, channel, ws, split, n_min, n_max) > 0)) {
                 cells_center[nb_cells][0] = i;
                 cells_center[nb_cells][1] = j;
                 nb_cells++;
@@ -258,12 +271,12 @@ int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cell
                 for (int k = 0; k < ws; k++) {
                     for (int l = 0; l < ws; l++) {
                         if (i-a+k > 0 && i-a+k < 949 && j-a+l > 0 && j-a+l < 949) {
-                            set_gray_value(image[i-a+k][j-a+l], 100);
+                            set_gray_value(image[i-a+k][j-a+l], 100, channel);
                         }
                     }
                 }
             }
-            if (image[i][j][0] == 100) {
+            if (image[i][j][channel] == 100) {
                 j = j + ws/2;
             }
         }
@@ -306,30 +319,26 @@ int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS
     //write_bitmap(output_image, "dbg.bmp");
     //END OF DEBUG CODE
 
-    // Temporary eroded image and buffer for image swapping
-    static unsigned char eroded_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS];
-    unsigned char (*img_buffer[2])[BMP_HEIGTH][BMP_CHANNELS] = {output_image, eroded_image};
-
-    int swap_count = 0;     // Swap counter to remember where is the image
+    int used_channel = 0;     // Swap counter to remember where is the image
 
     //Initial hard erosion
-    int done = erosion(img_buffer[swap_count%2], img_buffer[(swap_count+1)%2], 6);
-    swap_count ++;
+    int done = erosion(output_image, 6, (used_channel+1)%2);
+    used_channel ++;
     do {
 
         // Apply standard cross erosion
-        done = erosion(img_buffer[swap_count%2], img_buffer[(swap_count+1)%2], 0);
+        done = erosion(output_image, 0, (used_channel+1)%2);
 
         //DEBUG CODE
-        //char filename[64];
-        //sprintf(filename, "debug%d.bmp", nb_cells);
-        //write_bitmap(img_buffer[(swap_count+1)%2], filename);
+        char filename[64];
+        sprintf(filename, "2debug%d.bmp", nb_cells);
+        write_bitmap(output_image, filename);
         // END OF DEBUG CODE
 
         if (!done) {
             // Not fully eroded → run detection and generation
-            nb_cells = detection(img_buffer[(swap_count+1)%2], cells_center, nb_cells, 14,swap_count>4,5, (swap_count>6 ? 8 : 11));
-            swap_count++;
+            nb_cells = detection(output_image, cells_center, nb_cells, (used_channel+1)%2, 14,used_channel>4,5, (used_channel>6 ? 8 : 11));
+            used_channel++;
         }
     } while (!done);
 
