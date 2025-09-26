@@ -273,41 +273,24 @@ int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cell
 
 // Generate a result image by drawing a red cross on the original image at each detected cell
 void generate_image(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsigned char labelled_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells) {
-    for (int i = 0; i < BMP_WIDTH; i++) {
-        for (int j = 0; j < BMP_HEIGTH; j++) {
-            set_gray_value(labelled_image[i][j], image[i][j][0]);
-        }
-    }
+    memcpy(labelled_image, image, sizeof(unsigned char) * BMP_WIDTH * BMP_HEIGTH * BMP_CHANNELS);
     for (int i = 0; i < nb_cells; i++) {
         int x = cells_center[i][0];
         int y = cells_center[i][1];
 
-        labelled_image[x][y][1] = 0;
-        labelled_image[x][y][2] = 0;
-        labelled_image[x+1][y][1] = 0;
-        labelled_image[x+1][y][2] = 0;
-        labelled_image[x][y+1][1] = 0;
-        labelled_image[x][y+1][2] = 0;
-        labelled_image[x+1][y+1][1] = 0;
-        labelled_image[x+1][y+1][2] = 0;
-
         for (int j = 0; j < 16; j++) {
 
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y][0] = 255;
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y][1] = 0;
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y][2] = 0;
+            labelled_image[SAFE_IDX(x-7 + j)][y][1] = 0;
+            labelled_image[SAFE_IDX(x-7 + j)][y][2] = 0;
 
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y+1][0] = 255;
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y+1][1] = 0;
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y+1][2] = 0;
+            labelled_image[SAFE_IDX(x-7 + j)][y+1][1] = 0;
+            labelled_image[SAFE_IDX(x-7 + j)][y+1][2] = 0;
 
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y+1][0] = 255;
-            labelled_image[x][MIN(MAX(y-7 + j, 0),949)][1] = 0;
-            labelled_image[x][MIN(MAX(y-7 + j, 0),949)][2] = 0;
+            labelled_image[x][SAFE_IDX(y-7 + j)][1] = 0;
+            labelled_image[x][SAFE_IDX(y-7 + j)][2] = 0;
 
-            labelled_image[MIN(MAX(x-7 + j, 0),949)][y+1][0] = 255;
-            labelled_image[x+1][MIN(MAX(y-7 + j, 0),949)][1] = 0;
-            labelled_image[x+1][MIN(MAX(y-7 + j, 0),949)][2] = 0;
+            labelled_image[x+1][SAFE_IDX(y-7 + j)][1] = 0;
+            labelled_image[x+1][SAFE_IDX(y-7 + j)][2] = 0;
         }
     }
 }
