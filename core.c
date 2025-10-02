@@ -134,15 +134,14 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
 
      /* non-corner horizontal pixels */
     for (int x = left + 1; x < right; x++) {
-        if (image[top][x][channel] == 255)    white_top++;
-        if (image[bottom][x][channel] == 255) white_bottom++;
+        white_top    += (image[top][x][channel] == 255);
+        white_bottom += (image[bottom][x][channel] == 255);
     }
-
 
     /* non-corner vertical pixels */
     for (int y = top + 1; y < bottom; y++) {
-        if (image[y][left][channel] == 255)  white_left++;
-        if (image[y][right][channel] == 255) white_right++;
+        white_left  += (image[y][left][channel] == 255);
+        white_right += (image[y][right][channel] == 255);
     }
 
     /* corner flags */
@@ -183,11 +182,10 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
     }
 
     /* Count how many sides actually contain whites now */
-    int sides_with_white = 0;
-    if (white_top > 0 ) sides_with_white++;
-    if (white_bottom > 0) sides_with_white++;
-    if (white_left   > 0) sides_with_white++;
-    if (white_right  > 0) sides_with_white++;
+    int sides_with_white = (white_top    > 0) +
+                           (white_bottom > 0) +
+                           (white_left   > 0) +
+                           (white_right  > 0);
 
     if (sides_with_white == 0) {
         return 1;
@@ -260,7 +258,6 @@ int erosion(unsigned char work_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int s
 
 // Executing the detection of white cells onto a BW image given a window size (ws)
 int detection(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int channel, int ws, int split, int n_min, int n_max) {
-    printf("%d", channel);
     for (int i = 1; i < BMP_WIDTH-1; i++) {
         for (int j = 1; j < BMP_HEIGTH-1; j++) {
             if (image[i][j][channel] == 255 && (cell_test(image, i, j, channel, ws, split, n_min, n_max) > 0)) {
@@ -308,8 +305,10 @@ void generate_image(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], un
     }
 }
 
-// Main algorithm creating a result image giving an input image and a unused output image space
-int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsigned char output_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int nb_cells, int threshold) {
+// Main algorithm creating a result image giving an input image and an unused output image space
+int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsigned char output_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int cells_center[MAX_CELLS][2], int threshold) {
+
+    int nb_cells = 0;
 
     //Formatting the Input Image
     RGB2gray(input_image, output_image);
@@ -319,26 +318,27 @@ int main_algorithm(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS
     //write_bitmap(output_image, "dbg.bmp");
     //END OF DEBUG CODE
 
-    int used_channel = 0;     // Swap counter to remember where is the image
+    int cnt_erosion = 0;     // Swap counter to remember where is the image
 
     //Initial hard erosion
-    int done = erosion(output_image, 6, (used_channel+1)%2);
-    used_channel ++;
+    int done = erosion(output_image, 6, (cnt_erosion+1)%2);
+    cnt_erosion++;
     do {
+        int target_channel = (cnt_erosion+1)%2;
 
         // Apply standard cross erosion
-        done = erosion(output_image, 0, (used_channel+1)%2);
+        done = erosion(output_image, 0, target_channel);
 
         //DEBUG CODE
-        char filename[64];
-        sprintf(filename, "2debug%d.bmp", nb_cells);
-        write_bitmap(output_image, filename);
+        // char filename[64];
+        // sprintf(filename, "2debug%d.bmp", nb_cells);
+        // write_bitmap(output_image, filename);
         // END OF DEBUG CODE
 
         if (!done) {
             // Not fully eroded → run detection and generation
-            nb_cells = detection(output_image, cells_center, nb_cells, (used_channel+1)%2, 14,used_channel>4,5, (used_channel>6 ? 8 : 11));
-            used_channel++;
+            nb_cells = detection(output_image, cells_center, nb_cells, target_channel, 14,(cnt_erosion>4),5, 11);
+            cnt_erosion++;
         }
     } while (!done);
 
@@ -358,7 +358,6 @@ unsigned char otsu_method(unsigned char grey_image[BMP_WIDTH][BMP_HEIGTH][BMP_CH
         }
     }
 
-    // 3️⃣ Otsu variables
     long sumB = 0;      // sum of background
     int wB = 0;         // weight of background
     int wF = 0;         // weight of foreground

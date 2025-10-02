@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.29)
 project(Assignment_1 C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O1")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O1 -march=native")
 
 add_executable(Assignment_1 main.c
         core.c

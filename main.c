@@ -34,8 +34,6 @@ void invert(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsi
 //Main function
 int main(int argc, char** argv)
 {
-
-
   //argc counts how may arguments are passed
   //argv[0] is a string with the name of the program
   //argv[1] is the first command line argument (input image)
@@ -53,25 +51,27 @@ int main(int argc, char** argv)
   //Load image from file
   read_bitmap(argv[1], input_image);
 
-
   int nb_cells = 0;
   int cells_center[MAX_CELLS][2];
 
-
-
-
+  // Otsu threshold calculation
   unsigned char threshold =  otsu_method(input_image);
   printf("Otsu Threshold is: %d\n", threshold);
 
   start = clock();
-  nb_cells = main_algorithm(input_image, output_image, cells_center, nb_cells, threshold-10);
+
+  // Main Detection algorithm (by default the threshold is : Otsu's threshold - 10)
+  nb_cells = main_algorithm(input_image, output_image, cells_center, threshold-10);
+
   end = clock();
 
+  // Print the result data
   printf("Number of cells: %d\n", nb_cells);
 
   //Save image to file
   write_bitmap(output_image, argv[2]);
 
+  // Exec time for the main algorithm
   cpu_time_used = end - start;
   printf("Total time: %f ms\n", cpu_time_used * 1000.0 /CLOCKS_PER_SEC);
 
