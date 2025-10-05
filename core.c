@@ -94,7 +94,7 @@ int erosion_test_mask(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], 
 }
 
 /* Return 1 if a cell is contained in the square window of width ws around the white (i,j) pixel */
-static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANNELS], int i, int j, int channel, int ws, int split, int n_min, int n_max) {
+static inline int cell_test(unsigned char image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int i, int j, int channel, int ws, int split, int n_min, int n_max) {
     int a = ws/2 + 1;
     int b = ws/2;
 
@@ -201,7 +201,7 @@ static inline int cell_test(unsigned char image[BMP_HEIGTH][BMP_WIDTH][BMP_CHANN
     return 0;
 }
 
-/* Transform RGB image into it's gray level version */
+/* Transform RGB image into its gray level version */
 void RGB2gray(unsigned char color_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsigned char gray_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS]) {
     for (int i = 0; i < BMP_WIDTH; i++) {
         for (int j = 0; j < BMP_HEIGTH; j++) {
@@ -211,7 +211,7 @@ void RGB2gray(unsigned char color_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], un
     }
 }
 
-/* Transform gray image into it's Black&White only version using a threshold */
+/* Transform gray image into its Black&White only version using a threshold */
 void gray2BW(unsigned char gray_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], int threshold) {
     for (int i = 0; i < BMP_WIDTH; i++) {
         for (int j = 0; j < BMP_HEIGTH; j++) {
