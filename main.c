@@ -8,10 +8,11 @@
 #include <stdio.h>
 #include "cbmp.h"
 #include "core.h"
-#include <time.h>
+#include <windows.h>
 
-clock_t start, end;
-double cpu_time_used;
+//Setup for better time detection
+LARGE_INTEGER start, end, freq;
+double elapsed_ms;
 
 //Function to invert pixels of an image (negative)
 void invert(unsigned char input_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS], unsigned char output_image[BMP_WIDTH][BMP_HEIGTH][BMP_CHANNELS]){
@@ -39,6 +40,7 @@ int main(int argc, char** argv)
   //argv[1] is the first command line argument (input image)
   //argv[2] is the second command line argument (output image)
 
+
   //Checking that 2 arguments are passed
   if (argc != 3)
   {
@@ -54,26 +56,34 @@ int main(int argc, char** argv)
   int nb_cells = 0;
   int cells_center[MAX_CELLS][2];
 
+  QueryPerformanceFrequency(&freq);
+  QueryPerformanceCounter(&start);
+
   // Otsu threshold calculation
   unsigned char threshold =  otsu_method(input_image);
+
+  QueryPerformanceCounter(&end);
+  elapsed_ms = (end.QuadPart - start.QuadPart) * 1000.0 / freq.QuadPart;
+  printf("Total time for Otsu: %.3f ms\n", elapsed_ms);
   printf("Otsu Threshold is: %d\n", threshold);
 
-  start = clock();
+  QueryPerformanceFrequency(&freq);
+  QueryPerformanceCounter(&start);
 
   // Main Detection algorithm (by default the threshold is : Otsu's threshold - 10)
   nb_cells = main_algorithm(input_image, output_image, cells_center, threshold-10);
 
-  end = clock();
+  QueryPerformanceCounter(&end);
+
+  // Exec time for the main algorithm
+  elapsed_ms = (end.QuadPart - start.QuadPart) * 1000.0 / freq.QuadPart;
+  printf("Total time for main algo: %.3f ms\n", elapsed_ms);
 
   // Print the result data
   printf("Number of cells: %d\n", nb_cells);
 
   //Save image to file
   write_bitmap(output_image, argv[2]);
-
-  // Exec time for the main algorithm
-  cpu_time_used = end - start;
-  printf("Total time: %f ms\n", cpu_time_used * 1000.0 /CLOCKS_PER_SEC);
 
   printf("Done!\n");
   return 0;
